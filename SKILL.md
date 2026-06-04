@@ -105,42 +105,6 @@ There is **no HTTP polling endpoint** — the WebSocket is the only way to get t
 
 **⚠️ Portrait (9:16) is broken** — always returns an error. Use `square` or `landscape` instead. If you need a tall image, use `landscape` with a tall-oriented prompt.
 
-## Content Filter Workarounds
-
-FreeGen has a thin upstream content filter that blocks some explicit terms. When a prompt fails with the `error_response() takes 0 positional arguments` error, **check for blocked words first** before blaming aspect ratio.
-
-### Common Blocked Terms → Replacements
-
-| Blocked | Replace With |
-|---|---|
-| `nude` | `figure study`, `artistic form` |
-| `busty` / `full bust` | `curvy`, `voluptuous`, `thick figure` |
-| `cleavage` | describe neckline directly, `low-cut blouse` |
-| `lingerie` | `satin slip dress`, `silk robe` |
-| `boudoir` | `vintage glamour photography` |
-| `bralette` | `fitted silk choli top` |
-| `bikini` | `cropped halter top`, `crop top` |
-| `seductive` | `confident bold alluring gaze` |
-| `see-through` | `thin white linen shirt with deep camisole underneath` |
-| `lace teddy` | `delicate satin slip with thin straps` |
-
-### The Choli Formula (Indian alternative to "bra/bralette")
-
-When you want a "bra only" or "bralette" look:
-
-```
-wearing a fitted [color] silk choli top with saree draped low on waist
-```
-
-This renders the same silhouette using Indian wardrobe — reliable 6/6 in batch tests. The word `only`, `deep V-neck`, `plunging`, and `on hips` are triggers — avoid them.
-
-### Batch Retry Pattern
-
-When parallel generations have 1-2 failures:
-1. **Don't change the body descriptor** — `curvy`, `voluptuous` are stable
-2. **Swap the fabric first** — `champagne silk` → `pale gold satin`
-3. **Then drop the cut descriptor** — `deep V-neckline` → just `sleeveless`
-
 ## Architecture Notes
 
 - **Runtime dep:** `websockets>=10` (ships in hermes venv, no install needed)
