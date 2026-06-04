@@ -4,6 +4,15 @@
 
 Drop-in plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent) that adds free AI image generation via [freegen.app](https://freegen.app)'s public Z-Image Turbo model.
 
+## Why FreeGen?
+
+Every other "free" image API in 2026 is either dead or behind a paywall:
+- Pollinations → crypto payments
+- StableHorde → API key required
+- Civitai, DeepAI, Together → 401/403
+
+**FreeGen is the only working free option left.** It reverse-engineers freegen.app's browser-based image generator so you can generate images from your terminal, Telegram, or Discord — no account needed.
+
 ## Quick Install
 
 ```bash
@@ -26,6 +35,7 @@ hermes gateway restart
 - `/img` and `/imagine` — Aliases
 - `image_generate` tool — Agent can generate images on demand
 - Zero configuration — no API keys, no signup required
+- Supports square, landscape, and 4:3 aspect ratios
 
 ## Examples
 
@@ -46,18 +56,18 @@ Uses freegen.app's public anonymous pipeline:
 
 No accounts, no rate limits (per-IP queue), no payment.
 
-## Documentation
-
-See [SKILL.md](SKILL.md) for full documentation including:
-- Content filter workarounds
-- Choli formula for Indian aesthetic
-- Batch retry patterns
-- Troubleshooting guide
-
 ## Requirements
 
 - Hermes Agent installed
 - Python 3.10+ with `websockets` package (ships in hermes venv)
+
+## Documentation
+
+See [SKILL.md](SKILL.md) for full documentation including architecture details and troubleshooting guide.
+
+## Contributing
+
+Found a bug? Have an improvement? Open an issue or submit a PR!
 
 ## License
 
