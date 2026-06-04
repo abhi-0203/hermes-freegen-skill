@@ -44,9 +44,9 @@ requires_env: []
 optional_env: []
 ```
 
-### Step 2: Add config
+### Step 2: Ensure config includes plugin
 
-Add to `~/.hermes/config.yaml`:
+Your Hermes config should include these settings (the installer handles this automatically):
 
 ```yaml
 image_gen:
@@ -149,7 +149,7 @@ Known broken. Use `square` or `landscape`. This is a freegen upstream issue, not
 
 Plugin registers `/gen`, `/img`, `/imagine` correctly, but Telegram's bot menu has a `MAX_COMMANDS_PER_SCOPE` limit (default 30). Core Hermes commands (45+) take priority and fill all slots — plugin commands get trimmed silently.
 
-**Fix:** Bump the limit in `~/.hermes/hermes-agent/gateway/platforms/telegram.py`:
+**Fix:** Increase the command limit in the Telegram platform adapter (from 30 to 50):
 ```python
 MAX_COMMANDS_PER_SCOPE = 50  # default is 30
 ```
