@@ -27,12 +27,14 @@ hermes gateway restart
 - `image_generate` tool — Agent can generate images on demand
 - Zero configuration — no API keys, no signup required
 
-## Example
+## Examples
 
 ```
-/gen a golden retriever puppy in a garden
-/gen sexy modern baddie in black outfit
-/gen sunset over Hyderabad Charminar
+/gen golden retriever puppy playing in a sunlit garden
+/gen woman in elegant red saree at golden hour, cinematic portrait
+/gen sunset over Hyderabad Charminar, warm tones, dreamy atmosphere
+/gen cozy coffee shop scene with fairy lights, rainy evening
+/gen astronaut floating above Earth, dramatic lighting
 ```
 
 ## How It Works
