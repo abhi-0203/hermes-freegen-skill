@@ -1,15 +1,34 @@
-# 🎨 FreeGen — Free AI Image Generation for Hermes Agent
+<p align="center">
+  <img src="social-preview.jpg" alt="FreeGen Banner" width="100%">
+</p>
 
-**No API key. No signup. No payment.** Just works.
+<h1 align="center">🎨 FreeGen</h1>
+
+<p align="center">
+  <strong>Free AI Image Generation for Hermes Agent</strong><br>
+  No API key. No signup. No payment. Just works.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
+  <a href="https://github.com/abhi-0203/hermes-freegen-skill"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python"></a>
+  <a href="https://github.com/NousResearch/hermes-agent"><img src="https://img.shields.io/badge/hermes-agent-compatible-purple.svg" alt="Hermes"></a>
+</p>
+
+---
 
 Drop-in plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent) that adds free AI image generation via [freegen.app](https://freegen.app)'s public Z-Image Turbo model.
 
 ## Why FreeGen?
 
 Every other "free" image API in 2026 is either dead or behind a paywall:
-- Pollinations → crypto payments
-- StableHorde → API key required
-- Civitai, DeepAI, Together → 401/403
+
+| Provider | Status |
+|----------|--------|
+| Pollinations | 💀 Crypto payments |
+| StableHorde | 🔑 API key required |
+| Civitai, DeepAI, Together | 🚫 401/403 |
+| **FreeGen** | ✅ **Works** |
 
 **FreeGen is the only working free option left.** It reverse-engineers freegen.app's browser-based image generator so you can generate images from your terminal, Telegram, or Discord — no account needed.
 
@@ -25,17 +44,20 @@ bash scripts/install.sh
 ```
 
 Then restart your gateway:
+
 ```bash
 hermes gateway restart
 ```
 
 ## What You Get
 
-- `/gen <prompt>` — Generate images directly from Telegram/Discord/CLI
-- `/img` and `/imagine` — Aliases
-- `image_generate` tool — Agent can generate images on demand
-- Zero configuration — no API keys, no signup required
-- Supports square, landscape, and 4:3 aspect ratios
+| Feature | Description |
+|---------|-------------|
+| `/gen <prompt>` | Generate images directly from Telegram/Discord/CLI |
+| `/img` / `/imagine` | Aliases for `/gen` |
+| `image_generate` tool | Agent can generate images on demand |
+| Zero config | No API keys, no signup required |
+| Multiple ratios | Square, landscape, portrait, 4:3 |
 
 ## Examples
 
@@ -50,9 +72,13 @@ hermes gateway restart
 ## How It Works
 
 Uses freegen.app's public anonymous pipeline:
-1. POST to prompt-signer → get timestamp + signature
-2. POST to image-generator → submit job
-3. WebSocket → receive generated image
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Prompt Signer  │────▶│ Image Generator  │────▶│    WebSocket    │
+│  POST /sign     │     │ POST /generate   │     │  Receive image  │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
 
 No accounts, no rate limits (per-IP queue), no payment.
 
@@ -63,7 +89,11 @@ No accounts, no rate limits (per-IP queue), no payment.
 
 ## Documentation
 
-See [SKILL.md](SKILL.md) for full documentation including architecture details and troubleshooting guide.
+See [SKILL.md](SKILL.md) for full documentation including:
+- Architecture details
+- Troubleshooting guide
+- Content filter bypass tips
+- Batch generation patterns
 
 ## Contributing
 
