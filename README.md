@@ -37,7 +37,7 @@ Drop-in plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent) 
 
 ## Why FreeGen?
 
-Every other "free" image API in 2026 is either dead or behind a paywall:
+I got tired of every "free" image API being dead or behind a paywall in 2026:
 
 | Provider | Status |
 |----------|--------|
@@ -324,3 +324,7 @@ Found a bug? Have an improvement? Open an issue or submit a PR! See [CONTRIBUTIN
 ## License
 
 [MIT](LICENSE) — use freely, modify freely. Built by the Hermes community.
+
+---
+
+*Built with ☕ by [abhi_mawa](https://github.com/abhi-0203) — because I just wanted free images without the hassle.*
