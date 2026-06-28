@@ -14,7 +14,6 @@ Hey, thanks for wanting to help out! 🙌
 
 - **Bugs** — check [issues](https://github.com/abhi-0203/hermes-freegen-skill/issues) first
 - **New features** — open an issue to discuss before diving in
-- **Content filter updates** — FreeGen's filter changes often, so if you find new blocked terms, add them to the rewrite map
 - **Docs** — always welcome!
 
 ## Code Style

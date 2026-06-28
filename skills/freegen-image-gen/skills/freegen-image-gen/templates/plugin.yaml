@@ -1,9 +1,0 @@
-name: freegen
-version: 1.1.0
-description: "Free freegen.app image generation backend (Z-Image Turbo). No API key, no signup — anonymous prompt-signer + WebSocket pipeline."
-author: you
-kind: backend
-requires_env: []  # completely keyless
-optional_env: []
-# Runtime deps: the hermes venv already ships websockets>=10.
-# v1.1.0: Fixed asyncio.run() crash inside gateway event loop.

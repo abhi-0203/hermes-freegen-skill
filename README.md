@@ -106,7 +106,6 @@ hermes plugins list    # should show freegen as enabled
 | `image_generate` tool | Agent can generate images on demand |
 | Zero config | No API keys, no signup required |
 | Multiple ratios | Square (1:1), landscape (16:9), portrait (9:16) |
-| Auto-sanitizer | Automatically rewrites blocked terms to safe equivalents |
 | Batch support | Generate multiple images in parallel via subagents |
 
 ## Examples
@@ -154,17 +153,6 @@ with warm afternoon light (lighting)
 wearing a small red bandana (details)
 happy joyful mood, photography style (mood/style)
 ```
-
-### Filter-Safe Adjectives
-
-FreeGen has a thin content filter. Use these safe alternatives:
-
-| Instead of | Use |
-|-----------|-----|
-| sexy | striking, elegant, glamorous |
-| seductive | confident, alluring, poised |
-| beautiful | luminous, radiant, captivating |
-| gorgeous | stunning, breathtaking, ethereal |
 
 ## How It Works
 
@@ -313,9 +301,7 @@ print(list(cmds.keys()))
 | [SKILL.md](SKILL.md) | Full skill documentation: architecture, config, usage |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, development setup, PR guidelines |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
-| [references/content-filter.md](skills/freegen-image-gen/references/content-filter.md) | Content filter bypass guide |
 | [references/batch-generation-patterns.md](skills/freegen-image-gen/references/batch-generation-patterns.md) | Batch generation and prompt formulas |
-| [references/prompt-writing-bold-tasteful.md](skills/freegen-image-gen/references/prompt-writing-bold-tasteful.md) | Bold but filter-safe prompt writing |
 
 ## Contributing
 

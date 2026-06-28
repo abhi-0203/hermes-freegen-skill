@@ -9,11 +9,6 @@
 - Fixed thread pool leak
 - WebSocket now handles malformed data gracefully
 
-## v1.1.0
-
-- Auto-sanitizer rewrites blocked terms to safe equivalents
-- Built-in rewrite map for common trigger words
-
 ## v1.0.0
 
 - Initial release

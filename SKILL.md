@@ -112,31 +112,11 @@ Use this formula for consistent, high-quality results:
 [Subject] + [Setting/Background] + [Lighting] + [Clothing/Details] + [Mood/Style]
 ```
 
-### Auto-Sanitizer (v1.1.0+)
-
-The plugin auto-sanitizes prompts. Trigger words are rewritten to artistic equivalents before sending to FreeGen:
-
-| Trigger | Auto-replaced with |
-|---|---|
-| `busty` / `full bust` | `voluptuous` / `voluptuous figure` |
-| `cleavage` | `showing décolletage` |
-| `lingerie` | `satin slip dress` |
-| `bralette` | `fitted lace top` |
-| `bikini` | `cropped halter top` |
-| `seductive` | `confident alluring` |
-| `sexy` | `striking` |
-| `deep plunging` | `V-neckline` |
-| `topless` | `bare shoulders` |
-| `corset` | `fitted bodice` / `satin wrap dress` |
-| `fishnet stockings` | `fitted stockings` |
-| `nude` / `naked` | `figure study` / `artistic form` |
-
-### Manual Tips (if sanitizer misses a case)
+### Tips
 
 1. Use descriptive, editorial language — "elegant", "graceful", "cinematic"
-2. Avoid aggressive adjectives — "seductively" → "gracefully"
-3. Structure: subject → setting → lighting → clothing → mood/style
-4. If 400 error: change 1-2 words, don't rewrite the whole prompt
+2. Structure: subject → setting → lighting → clothing → mood/style
+3. If 400 error: change 1-2 words, don't rewrite the whole prompt
 
 ## Architecture Notes
 
@@ -206,9 +186,7 @@ If freegen changes their endpoints:
 ## References
 
 See the `references/` directory for detailed guides:
-- [Content Filter Bypass](references/content-filter.md) — blocked terms and workarounds
 - [Batch Generation Patterns](references/batch-generation-patterns.md) — multi-image workflows
-- [Bold Prompt Writing](references/prompt-writing-bold-tasteful.md) — creative prompt techniques
 
 ## License
 
