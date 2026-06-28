@@ -20,11 +20,13 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import concurrent.futures
 import hashlib
 import json
 import logging
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
@@ -62,17 +64,53 @@ _BROWSER_HEADERS = {
 }
 
 # Map our standard aspect ratios → freegen ratio_id values.
-_ASPECT_TO_RATIO_ID = {
+# Supports named presets and explicit ratio strings.
+_ASPECT_TO_RATIO_ID: Dict[str, str] = {
+    # Named presets
     "square": "1:1",
     "landscape": "16:9",
     "portrait": "9:16",
     "wide": "16:9",
     "tall": "9:16",
-    "ultrawide": "16:9",
+    "ultrawide": "21:9",
+    "cinematic": "21:9",
+    "photo": "3:2",
+    "classic": "4:3",
+    "phone": "9:16",
+    "desktop": "16:9",
+    "banner": "3:1",
+    "social": "4:5",
+    "story": "9:16",
+    # Explicit ratio strings passthrough
+    "1:1": "1:1",
+    "16:9": "16:9",
+    "9:16": "9:16",
+    "4:3": "4:3",
+    "3:4": "3:4",
+    "3:2": "3:2",
+    "2:3": "2:3",
+    "4:5": "4:5",
+    "5:4": "5:4",
+    "21:9": "21:9",
+    "9:21": "9:21",
 }
 
 _WS_TIMEOUT_SECONDS = 180.0
 _MAX_PROMPT_LEN = 2000
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 1.0  # seconds, doubles each attempt
+_HTTP_TIMEOUT = 30.0
+
+# Shared thread pool for offloading async work when an event loop is already running.
+_thread_pool: Optional[concurrent.futures.ThreadPoolExecutor] = None
+
+
+def _get_thread_pool() -> concurrent.futures.ThreadPoolExecutor:
+    """Return a lazily-initialised shared thread pool."""
+    global _thread_pool
+    if _thread_pool is None:
+        _thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+    return _thread_pool
 
 
 class FreegenImageGenProvider(ImageGenProvider):
@@ -142,6 +180,13 @@ class FreegenImageGenProvider(ImageGenProvider):
 
         aspect = resolve_aspect_ratio(aspect_ratio)
         ratio_id = _ASPECT_TO_RATIO_ID.get(aspect, "1:1")
+        if aspect not in _ASPECT_TO_RATIO_ID:
+            logger.warning(
+                "Unknown aspect ratio '%s', falling back to 1:1. "
+                "Supported: %s",
+                aspect,
+                ", ".join(sorted(set(_ASPECT_TO_RATIO_ID.values()))),
+            )
 
         # 1. Sign the prompt.
         try:
@@ -203,25 +248,64 @@ class FreegenImageGenProvider(ImageGenProvider):
             provider=self.name,
         )
 
-    # --- internals: HTTP ---
+    # --- internals: HTTP with retry ---
 
     @staticmethod
-    def _post_json(url: str, body: Dict[str, Any], timeout: float = 30.0) -> Dict[str, Any]:
-        data = json.dumps(body).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={**_BROWSER_HEADERS, "Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            payload = r.read()
-        try:
-            return json.loads(payload)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(
-                f"Non-JSON response from {url}: {payload[:200]!r}"
-            ) from exc
+    def _post_json(
+        url: str,
+        body: Dict[str, Any],
+        timeout: float = _HTTP_TIMEOUT,
+        max_retries: int = _MAX_RETRIES,
+    ) -> Dict[str, Any]:
+        """POST JSON with exponential-backoff retry on transient failures."""
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                data = json.dumps(body).encode("utf-8")
+                req = urllib.request.Request(
+                    url,
+                    data=data,
+                    headers={**_BROWSER_HEADERS, "Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    payload = r.read()
+                try:
+                    return json.loads(payload)
+                except json.JSONDecodeError as exc:
+                    raise RuntimeError(
+                        f"Non-JSON response from {url}: {payload[:200]!r}"
+                    ) from exc
+            except urllib.error.HTTPError as exc:
+                # 4xx client errors (except 429) are not retryable.
+                if 400 <= exc.code < 500 and exc.code != 429:
+                    body_text = ""
+                    try:
+                        body_text = exc.read().decode("utf-8", errors="replace")[:300]
+                    except Exception:
+                        pass
+                    raise RuntimeError(
+                        f"HTTP {exc.code} from {url}: {body_text or exc.reason}"
+                    ) from exc
+                last_exc = exc
+                delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    "freegen: HTTP %s from %s (attempt %d/%d), retrying in %.1fs",
+                    exc.code, url, attempt, max_retries, delay,
+                )
+            except (urllib.error.URLError, OSError, TimeoutError) as exc:
+                last_exc = exc
+                delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    "freegen: network error from %s (attempt %d/%d): %s — retrying in %.1fs",
+                    url, attempt, max_retries, exc, delay,
+                )
+            except RuntimeError:
+                raise  # don't retry JSON decode errors
+            time.sleep(delay)
+        raise RuntimeError(
+            f"freegen: {url} failed after {max_retries} attempts"
+        ) from last_exc
 
     def _sign_prompt(self, prompt: str) -> tuple[int, str]:
         resp = self._post_json(SIGNER_URL, {"prompt": prompt})
@@ -256,60 +340,85 @@ class FreegenImageGenProvider(ImageGenProvider):
         except RuntimeError:
             loop = None
         if loop and loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(asyncio.run, self._ws_recv(job_id, auth, timeout))
-                return future.result(timeout=timeout + 30)
-        else:
-            return asyncio.run(self._ws_recv(job_id, auth, timeout))
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop and loop.is_running():
-            # We're inside an already-running event loop (gateway context).
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(asyncio.run, self._ws_recv(job_id, auth, timeout))
-                return future.result(timeout=timeout + 30)
+            pool = _get_thread_pool()
+            future = pool.submit(asyncio.run, self._ws_recv(job_id, auth, timeout))
+            return future.result(timeout=timeout + 30)
         else:
             return asyncio.run(self._ws_recv(job_id, auth, timeout))
 
     @staticmethod
     async def _ws_recv(job_id: str, auth: str, timeout: float) -> str:
-        async with websockets.connect(
-            WEBSOCKET_URL,
-            ping_interval=20,
-            additional_headers={
-                "User-Agent": _BROWSER_HEADERS["User-Agent"],
-                "Origin": "https://freegen.app",
-            },
-        ) as ws:
-            await ws.send(
-                json.dumps({"type": "subscribe", "job_id": job_id, "auth": auth})
-            )
-
-            deadline = time.monotonic() + timeout
-            while time.monotonic() < deadline:
-                remaining = max(0.05, deadline - time.monotonic())
-                try:
-                    raw = await asyncio.wait_for(ws.recv(), timeout=remaining)
-                except asyncio.TimeoutError:
-                    raise RuntimeError(
-                        f"WebSocket timed out after {timeout:.0f}s waiting for job {job_id}"
+        """Connect to the WebSocket bridge, subscribe, and wait for the image result."""
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                async with websockets.connect(
+                    WEBSOCKET_URL,
+                    ping_interval=20,
+                    close_timeout=10,
+                    additional_headers={
+                        "User-Agent": _BROWSER_HEADERS["User-Agent"],
+                        "Origin": "https://freegen.app",
+                    },
+                ) as ws:
+                    await ws.send(
+                        json.dumps({"type": "subscribe", "job_id": job_id, "auth": auth})
                     )
-                msg = json.loads(raw)
-                t = msg.get("type")
-                if t == "result":
-                    image_data = msg.get("image_data") or msg.get("image_data_url")
-                    if not image_data:
-                        raise RuntimeError(
-                            f"WS result message had no image_data: {msg}"
-                        )
-                    return image_data
-            raise RuntimeError(
-                f"WebSocket loop exited after {timeout:.0f}s without a result"
-            )
+
+                    deadline = time.monotonic() + timeout
+                    while time.monotonic() < deadline:
+                        remaining = max(0.05, deadline - time.monotonic())
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=remaining)
+                        except asyncio.TimeoutError:
+                            raise RuntimeError(
+                                f"WebSocket timed out after {timeout:.0f}s waiting for job {job_id}"
+                            )
+                        # Handle non-JSON messages gracefully (ping/pong, binary, etc.)
+                        if not isinstance(raw, str):
+                            logger.debug("freegen: ignoring non-text WS message: %r", type(raw))
+                            continue
+                        try:
+                            msg = json.loads(raw)
+                        except json.JSONDecodeError:
+                            logger.debug("freegen: ignoring malformed WS message: %s", raw[:200])
+                            continue
+                        t = msg.get("type")
+                        if t == "result":
+                            image_data = msg.get("image_data") or msg.get("image_data_url")
+                            if not image_data:
+                                raise RuntimeError(
+                                    f"WS result message had no image_data: {msg}"
+                                )
+                            return image_data
+                        # Log unexpected message types at debug level
+                        if t and t not in ("subscribe", "subscribed", "ack"):
+                            logger.debug("freegen: unexpected WS message type '%s': %s", t, msg)
+                    raise RuntimeError(
+                        f"WebSocket loop exited after {timeout:.0f}s without a result"
+                    )
+            except (websockets.exceptions.ConnectionClosed, OSError, ConnectionError) as exc:
+                last_exc = exc
+                if attempt < _MAX_RETRIES:
+                    delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                    logger.warning(
+                        "freegen: WS connection lost for job %s (attempt %d/%d): %s — reconnecting in %.1fs",
+                        job_id, attempt, _MAX_RETRIES, exc, delay,
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.exception("freegen: WS connection failed after %d attempts", _MAX_RETRIES)
+            except RuntimeError:
+                raise  # don't retry timeout/results errors
+            except Exception as exc:
+                last_exc = exc
+                logger.exception("freegen: unexpected WS error (attempt %d/%d)", attempt, _MAX_RETRIES)
+                if attempt < _MAX_RETRIES:
+                    delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
+                    await asyncio.sleep(delay)
+        raise RuntimeError(
+            f"freegen: WebSocket failed after {_MAX_RETRIES} attempts for job {job_id}"
+        ) from last_exc
 
 
 # ---------------------------------------------------------------------------
@@ -352,9 +461,11 @@ def _format_success(result: Dict[str, Any], prompt: str) -> str:
 def _handle_gen_command(raw_args: str) -> Optional[str]:
     """Slash command handler for /gen, /img, /imagine."""
     if not raw_args or not raw_args.strip():
+        supported = ", ".join(sorted(set(_ASPECT_TO_RATIO_ID.values())))
         return (
             "✏️ Usage: `/gen <prompt>`\n"
-            "Optional: `--ratio <square|landscape|portrait|wide|tall|ultrawide>`\n"
+            f"Optional: `--ratio <{supported}>` or named presets: "
+            "square, landscape, portrait, wide, tall, ultrawide, cinematic, photo, classic, banner, social, story\n"
             "Example: `/gen a corgi astronaut in space --ratio wide`"
         )
 
@@ -398,7 +509,7 @@ def register(ctx) -> None:
         name="gen",
         handler=_handle_gen_command,
         description="Generate an AI image with the free freegen.app backend (Z-Image Turbo, no API key).",
-        args_hint="<prompt> [--ratio <square|landscape|portrait|wide|tall|ultrawide>]",
+        args_hint="<prompt> [--ratio <square|landscape|portrait|wide|tall|ultrawide|cinematic|photo|classic|banner|social|story>]",
     )
     ctx.register_command(
         name="img",
@@ -412,4 +523,4 @@ def register(ctx) -> None:
         description="Alias of /gen — generate an image with freegen.app.",
         args_hint="<prompt> [--ratio ...]",
     )
-    logger.info("freegen plugin registered: /gen, /img, /imagine slash commands + image_gen provider")
+    logger.info("freegen plugin registered: /gen, /img, /imagine slash commands + image gen provider")
