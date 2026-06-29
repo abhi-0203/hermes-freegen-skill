@@ -64,9 +64,9 @@ _BROWSER_HEADERS = {
 }
 
 # Map our standard aspect ratios → freegen ratio_id values.
-# Supports named presets and explicit ratio strings.
-_ASPECT_TO_RATIO_ID: Dict[str, str] = {
-    # Named presets
+# Includes both friendly names AND normalized ratios (what resolve_aspect_ratio returns).
+_ASPECT_TO_RATIO_ID = {
+    # Friendly names
     "square": "1:1",
     "landscape": "16:9",
     "portrait": "9:16",
@@ -81,7 +81,7 @@ _ASPECT_TO_RATIO_ID: Dict[str, str] = {
     "banner": "3:1",
     "social": "4:5",
     "story": "9:16",
-    # Explicit ratio strings passthrough
+    # Normalized ratios (resolve_aspect_ratio returns these)
     "1:1": "1:1",
     "16:9": "16:9",
     "9:16": "9:16",

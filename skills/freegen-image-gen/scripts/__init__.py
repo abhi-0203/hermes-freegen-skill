@@ -62,13 +62,35 @@ _BROWSER_HEADERS = {
 }
 
 # Map our standard aspect ratios → freegen ratio_id values.
+# Includes both friendly names AND normalized ratios (what resolve_aspect_ratio returns).
 _ASPECT_TO_RATIO_ID = {
+    # Friendly names
     "square": "1:1",
     "landscape": "16:9",
     "portrait": "9:16",
     "wide": "16:9",
     "tall": "9:16",
-    "ultrawide": "16:9",
+    "ultrawide": "21:9",
+    "cinematic": "21:9",
+    "photo": "3:2",
+    "classic": "4:3",
+    "phone": "9:16",
+    "desktop": "16:9",
+    "banner": "3:1",
+    "social": "4:5",
+    "story": "9:16",
+    # Normalized ratios (resolve_aspect_ratio returns these)
+    "1:1": "1:1",
+    "16:9": "16:9",
+    "9:16": "9:16",
+    "4:3": "4:3",
+    "3:4": "3:4",
+    "3:2": "3:2",
+    "2:3": "2:3",
+    "4:5": "4:5",
+    "5:4": "5:4",
+    "21:9": "21:9",
+    "9:21": "9:21",
 }
 
 _WS_TIMEOUT_SECONDS = 180.0
