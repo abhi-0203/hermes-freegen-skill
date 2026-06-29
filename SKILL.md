@@ -1,8 +1,8 @@
 ---
 name: freegen-image-gen
 description: "Free AI image generation for Hermes Agent — no API key, no signup, no payment. Uses freegen.app's public Z-Image Turbo model via a sign→submit→subscribe WebSocket pipeline. Drop-in plugin + config."
-author: abhi-0203
-version: 1.11.0
+author: abhi_mawa
+version: 1.2.0
 tags: [image-generation, free, keyless, plugin, freegen]
 ---
 
@@ -22,28 +22,29 @@ As of mid-2026, every other "free, no key" image API is either dead or behind a 
 
 **FreeGen is the only working free option left.** If it goes down, the realistic fallback is Pollinations signup (30 seconds, free tier, no card).
 
-## Quick Install
+## Quick Install (3 steps)
 
-### Option A: One-line installer
-
-```bash
-git clone https://github.com/abhi-0203/hermes-freegen-skill.git
-cd hermes-freegen-skill
-bash scripts/install.sh
-hermes gateway restart
-```
-
-### Option B: Manual (3 steps)
-
-**Step 1:** Copy the plugin
+### Step 1: Copy the plugin
 
 ```bash
 mkdir -p ~/.hermes/plugins/freegen
-cp scripts/__init__.py ~/.hermes/plugins/freegen/__init__.py
-cp templates/plugin.yaml ~/.hermes/plugins/freegen/plugin.yaml
 ```
 
-**Step 2:** Ensure config includes plugin
+Copy the `__init__.py` from the **Plugin Files** section below into `~/.hermes/plugins/freegen/__init__.py`.
+
+Create `~/.hermes/plugins/freegen/plugin.yaml`:
+
+```yaml
+name: freegen
+version: 1.0.0
+description: "Free freegen.app image generation backend (Z-Image Turbo). No API key, no signup."
+author: you
+kind: backend
+requires_env: []
+optional_env: []
+```
+
+### Step 2: Ensure config includes plugin
 
 Your Hermes config should include these settings (the installer handles this automatically):
 
@@ -58,22 +59,78 @@ plugins:
     - freegen
 ```
 
-**Step 3:** Verify
+### Step 3: Verify
 
 ```bash
 hermes plugins list    # should show freegen as enabled
 ```
 
 Then test with the agent — ask it to generate an image, or use the slash command:
-
 ```
 /gen a corgi astronaut in space
 ```
 
+## Slash Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/gen` | Generate a single image | `/gen a corgi in space` |
+| `/img` | Alias for /gen | `/img a cat astronaut` |
+| `/imagine` | Alias for /gen | `/imagine a dog astronaut` |
+| `/batch` | Generate multiple images | `/batch "cat" "dog" "bird"` |
+| `/history` | View generation history | `/history --search "cat"` |
+
+## Batch Generation
+
+Generate multiple images in a single request with parallel processing:
+
+```bash
+# Basic batch
+/batch "corgi in space" "cat astronaut" "dog astronaut"
+
+# With options
+/batch --ratio landscape "mountain" "ocean" "forest"
+/batch --sequential "prompt1" "prompt2" "prompt3"
+/batch --parallel 2 "prompt1" "prompt2" "prompt3"
+```
+
+**Features:**
+- Parallel or sequential processing
+- Configurable batch size (max 10)
+- Individual error handling per image
+- Summary with success/failure counts
+
+## Image History
+
+Track all your generated images with metadata:
+
+```bash
+# View recent history
+/history
+
+# Search by prompt
+/history --search "cat"
+
+# Pagination
+/history --limit 5 --offset 10
+
+# Clear history
+/history --clear
+```
+
+**History includes:**
+- Prompt text
+- Model used
+- Aspect ratio
+- Timestamp
+- File path
+- Generation duration
+
+History is stored in `~/.hermes/freegen/history/history.jsonl`.
+
 ## How It Works
 
 The browser-facing site at [freegen.app](https://freegen.app) is a Next.js SPA. Its inline script defines three endpoints that we replay from Python:
-
 ```
 1. POST  https://prompt-signer.freegen.app    {prompt}
    → {ts, sig}
@@ -95,28 +152,15 @@ There is **no HTTP polling endpoint** — the WebSocket is the only way to get t
 | Field | Value |
 |---|---|
 | Model | `zimage` (Z-Image Turbo) — only one available |
-| Aspect ratios | `1:1` (square), `4:3`, `16:9`, `9:16` (portrait) |
+| Aspect ratios | `1:1` (square), `4:3`, `16:9` — **`portrait` (9:16) is BROKEN** |
 | Prompt length | ≤ 2000 chars |
 | Cost | Free, ad-supported |
 | Rate limit | Per-IP queue (max 1 concurrent) |
 | Auth | None |
-| Typical size | Square: 896×896, Portrait: 672×1200 JPEG |
+| Typical size | 896×896 JPEG |
+| Batch size | Max 10 images per batch |
 
-## Prompt Best Practices
-
-### Structure
-
-Use this formula for consistent, high-quality results:
-
-```
-[Subject] + [Setting/Background] + [Lighting] + [Clothing/Details] + [Mood/Style]
-```
-
-### Tips
-
-1. Use descriptive, editorial language — "elegant", "graceful", "cinematic"
-2. Structure: subject → setting → lighting → clothing → mood/style
-3. If 400 error: change 1-2 words, don't rewrite the whole prompt
+**⚠️ Portrait (9:16) is broken** — always returns an error. Use `square` or `landscape` instead. If you need a tall image, use `landscape` with a tall-oriented prompt.
 
 ## Architecture Notes
 
@@ -154,6 +198,10 @@ Queue can be long on busy days (shared AWS IPs). The plugin waits 180s. If it co
 
 You're hitting the CDN cache. Use a fresh unique prompt (embed timestamp or random). The plugin always sends new prompts, so this shouldn't happen in normal use.
 
+### "portrait" returns error
+
+Known broken. Use `square` or `landscape`. This is a freegen upstream issue, not a plugin bug.
+
 ### Slash commands not showing in Telegram menu
 
 Plugin registers `/gen`, `/img`, `/imagine` correctly, but Telegram's bot menu has a `MAX_COMMANDS_PER_SCOPE` limit (default 30). Core Hermes commands (45+) take priority and fill all slots — plugin commands get trimmed silently.
@@ -182,11 +230,6 @@ If freegen changes their endpoints:
 3. Update the three URL constants at the top of `__init__.py`
 4. Test with a fresh prompt
 5. Restart gateway or use `hermes chat -t image_gen -q '...'` for one-shot test
-
-## References
-
-See the `references/` directory for detailed guides:
-- [Batch Generation Patterns](references/batch-generation-patterns.md) — multi-image workflows
 
 ## License
 
