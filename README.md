@@ -1,104 +1,117 @@
-<p align="center">
-  <img src="social-preview.jpg" alt="FreeGen Banner" width="100%">
-</p>
+# 🎨 FreeGen — Free AI Image Generation for Hermes Agent
 
-<h1 align="center">🎨 FreeGen</h1>
+**No API key. No signup. No payment.** Just works.
 
-<p align="center">
-  <strong>Free AI Image Generation for Hermes Agent</strong><br>
-  No API key. No signup. No payment. Just works.
-</p>
+Uses [freegen.app](https://freegen.app)'s public anonymous pipeline to generate images with the Z-Image Turbo model. The same model that powers paid services, available for free via their web UI's backend.
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
-  <a href="https://github.com/abhi-0203/hermes-freegen-skill"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python"></a>
-  <a href="https://github.com/NousResearch/hermes-agent"><img src="https://img.shields.io/badge/hermes-agent-compatible-purple.svg" alt="Hermes"></a>
-</p>
+## ✨ Features
+
+- **Free forever** — No API key, no signup, no payment
+- **Fast generation** — ~5-30 seconds per image
+- **Batch generation** — Generate multiple images in parallel
+- **Image history** — Track and search your generation history
+- **Multiple aspect ratios** — Square, landscape, wide
+- **Hermes integration** — Drop-in plugin with slash commands
+
+## 🚀 Quick Start
+
+```bash
+# 1. Clone this repo
+git clone https://github.com/abhi-0203/hermes-freegen-skill.git
+
+# 2. Run the installer
+cd hermes-freegen-skill
+./scripts/install.sh
+
+# 3. Restart Hermes
+hermes restart
+```
+
+## 📝 Slash Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/gen` | Generate a single image | `/gen a corgi in space` |
+| `/img` | Alias for /gen | `/img a cat astronaut` |
+| `/imagine` | Alias for /gen | `/imagine a dog astronaut` |
+| `/batch` | Generate multiple images | `/batch "cat" "dog" "bird"` |
+| `/history` | View generation history | `/history --search "cat"` |
+
+## 🎯 Batch Generation
+
+Generate multiple images in a single request:
+
+```bash
+# Basic batch
+/batch "corgi in space" "cat astronaut" "dog astronaut"
+
+# With options
+/batch --ratio landscape "mountain" "ocean" "forest"
+/batch --sequential "prompt1" "prompt2" "prompt3"
+```
+
+## 📚 Image History
+
+Track all your generated images:
+
+```bash
+# View recent history
+/history
+
+# Search by prompt
+/history --search "cat"
+
+# Pagination
+/history --limit 5 --offset 10
+
+# Clear history
+/history --clear
+```
+
+## 🏗️ Architecture
+
+FreeGen uses a 3-step pipeline:
+1. **Sign** — POST prompt to get timestamp + signature
+2. **Submit** — POST to get job ID
+3. **Subscribe** — WebSocket to receive the image
+
+This avoids authentication while preventing abuse via rate limiting.
+
+## ⚠️ Limitations
+
+- **Portrait (9:16) is broken** — Always returns error
+- **Rate limited** — Max 1 concurrent generation per IP
+- **Single model** — Only Z-Image Turbo available
+
+## 📁 Project Structure
+
+```
+hermes-freegen-skill/
+├── scripts/
+│   ├── __init__.py      # Main plugin code
+│   ├── batch.py         # Batch generation module
+│   ├── history.py       # Image history tracking
+│   └── install.sh       # Installer script
+├── skills/
+│   └── freegen-image-gen/
+│       └── SKILL.md     # Full documentation
+├── templates/
+│   └── plugin.yaml      # Plugin manifest template
+├── SKILL.md             # Skill documentation
+└── README.md            # This file
+```
+
+## 🤝 Contributing
+
+1. Fork the repo
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## 📄 License
+
+MIT — use freely, modify freely.
 
 ---
 
-Drop-in plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent) that adds free AI image generation via [freegen.app](https://freegen.app)'s public Z-Image Turbo model.
-
-## Why FreeGen?
-
-Every other "free" image API in 2026 is either dead or behind a paywall:
-
-| Provider | Status |
-|----------|--------|
-| Pollinations | 💀 Crypto payments |
-| StableHorde | 🔑 API key required |
-| Civitai, DeepAI, Together | 🚫 401/403 |
-| **FreeGen** | ✅ **Works** |
-
-**FreeGen is the only working free option left.** It reverse-engineers freegen.app's browser-based image generator so you can generate images from your terminal, Telegram, or Discord — no account needed.
-
-## Quick Install
-
-```bash
-# Clone this repo
-git clone https://github.com/abhi-0203/hermes-freegen-skill.git
-cd hermes-freegen-skill
-
-# Run the installer
-bash scripts/install.sh
-```
-
-Then restart your gateway:
-
-```bash
-hermes gateway restart
-```
-
-## What You Get
-
-| Feature | Description |
-|---------|-------------|
-| `/gen <prompt>` | Generate images directly from Telegram/Discord/CLI |
-| `/img` / `/imagine` | Aliases for `/gen` |
-| `image_generate` tool | Agent can generate images on demand |
-| Zero config | No API keys, no signup required |
-| Multiple ratios | Square, landscape, portrait, 4:3 |
-
-## Examples
-
-```
-/gen golden retriever puppy playing in a sunlit garden
-/gen woman in elegant red saree at golden hour, cinematic portrait
-/gen sunset over Hyderabad Charminar, warm tones, dreamy atmosphere
-/gen cozy coffee shop scene with fairy lights, rainy evening
-/gen astronaut floating above Earth, dramatic lighting
-```
-
-## How It Works
-
-Uses freegen.app's public anonymous pipeline:
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Prompt Signer  │────▶│ Image Generator  │────▶│    WebSocket    │
-│  POST /sign     │     │ POST /generate   │     │  Receive image  │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-```
-
-No accounts, no rate limits (per-IP queue), no payment.
-
-## Requirements
-
-- Hermes Agent installed
-- Python 3.10+ with `websockets` package (ships in hermes venv)
-
-## Documentation
-
-See [SKILL.md](SKILL.md) for full documentation including:
-- Architecture details
-- Troubleshooting guide
-- Content filter bypass tips
-- Batch generation patterns
-
-## Contributing
-
-Found a bug? Have an improvement? Open an issue or submit a PR!
-
-## License
-
-MIT
+Built by the [Hermes](https://github.com/NousResearch/hermes-agent) community.

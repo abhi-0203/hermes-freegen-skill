@@ -44,7 +44,6 @@ from agent.image_gen_provider import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "zimage"
-
 SIGNER_URL = "https://prompt-signer.freegen.app"
 GENERATOR_URL = "https://image-generator.freegen.app"
 WEBSOCKET_URL = "wss://websocket-bridge.freegen.app/ws"
@@ -262,18 +261,6 @@ class FreegenImageGenProvider(ImageGenProvider):
                 return future.result(timeout=timeout + 30)
         else:
             return asyncio.run(self._ws_recv(job_id, auth, timeout))
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop and loop.is_running():
-            # We're inside an already-running event loop (gateway context).
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(asyncio.run, self._ws_recv(job_id, auth, timeout))
-                return future.result(timeout=timeout + 30)
-        else:
-            return asyncio.run(self._ws_recv(job_id, auth, timeout))
 
     @staticmethod
     async def _ws_recv(job_id: str, auth: str, timeout: float) -> str:
@@ -387,7 +374,35 @@ def _handle_gen_command(raw_args: str) -> Optional[str]:
     result = provider.generate(prompt=prompt, **kwargs)
     if not result.get("success"):
         return f"❌ {result.get('error', 'generation failed')}"
+
+    # Record to history
+    try:
+        from .history import record_generation
+        if result.get("image"):
+            record_generation(
+                prompt=prompt,
+                model=result.get("model", "zimage"),
+                aspect_ratio=ratio or "square",
+                image_path=str(result["image"]),
+                provider="freegen",
+                duration_seconds=result.get("duration_seconds"),
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to record history: {exc}")
+
     return _format_success(result, prompt)
+
+
+def _handle_batch_command(raw_args: str) -> Optional[str]:
+    """Slash command handler for /batch."""
+    from .batch import handle_batch_command
+    return handle_batch_command(raw_args)
+
+
+def _handle_history_command(raw_args: str) -> Optional[str]:
+    """Slash command handler for /history."""
+    from .history import handle_history_command
+    return handle_history_command(raw_args or "")
 
 
 def register(ctx) -> None:
@@ -412,4 +427,16 @@ def register(ctx) -> None:
         description="Alias of /gen — generate an image with freegen.app.",
         args_hint="<prompt> [--ratio ...]",
     )
-    logger.info("freegen plugin registered: /gen, /img, /imagine slash commands + image_gen provider")
+    ctx.register_command(
+        name="batch",
+        handler=_handle_batch_command,
+        description="Generate multiple images in a single request with freegen.app.",
+        args_hint='"prompt1" "prompt2" [...] [--ratio <ratio>] [--parallel N]',
+    )
+    ctx.register_command(
+        name="history",
+        handler=_handle_history_command,
+        description="View your image generation history.",
+        args_hint="[--limit N] [--offset N] [--search term] [--clear]",
+    )
+    logger.info("freegen plugin registered: /gen, /img, /imagine, /batch, /history + image_gen provider")

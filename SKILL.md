@@ -2,7 +2,7 @@
 name: freegen-image-gen
 description: "Free AI image generation for Hermes Agent — no API key, no signup, no payment. Uses freegen.app's public Z-Image Turbo model via a sign→submit→subscribe WebSocket pipeline. Drop-in plugin + config."
 author: abhi_mawa
-version: 1.1.0
+version: 1.2.0
 tags: [image-generation, free, keyless, plugin, freegen]
 ---
 
@@ -66,15 +66,71 @@ hermes plugins list    # should show freegen as enabled
 ```
 
 Then test with the agent — ask it to generate an image, or use the slash command:
-
 ```
 /gen a corgi astronaut in space
 ```
 
+## Slash Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/gen` | Generate a single image | `/gen a corgi in space` |
+| `/img` | Alias for /gen | `/img a cat astronaut` |
+| `/imagine` | Alias for /gen | `/imagine a dog astronaut` |
+| `/batch` | Generate multiple images | `/batch "cat" "dog" "bird"` |
+| `/history` | View generation history | `/history --search "cat"` |
+
+## Batch Generation
+
+Generate multiple images in a single request with parallel processing:
+
+```bash
+# Basic batch
+/batch "corgi in space" "cat astronaut" "dog astronaut"
+
+# With options
+/batch --ratio landscape "mountain" "ocean" "forest"
+/batch --sequential "prompt1" "prompt2" "prompt3"
+/batch --parallel 2 "prompt1" "prompt2" "prompt3"
+```
+
+**Features:**
+- Parallel or sequential processing
+- Configurable batch size (max 10)
+- Individual error handling per image
+- Summary with success/failure counts
+
+## Image History
+
+Track all your generated images with metadata:
+
+```bash
+# View recent history
+/history
+
+# Search by prompt
+/history --search "cat"
+
+# Pagination
+/history --limit 5 --offset 10
+
+# Clear history
+/history --clear
+```
+
+**History includes:**
+- Prompt text
+- Model used
+- Aspect ratio
+- Timestamp
+- File path
+- Generation duration
+
+History is stored in `~/.hermes/freegen/history/history.jsonl`.
+
 ## How It Works
 
 The browser-facing site at [freegen.app](https://freegen.app) is a Next.js SPA. Its inline script defines three endpoints that we replay from Python:
-
 ```
 1. POST  https://prompt-signer.freegen.app    {prompt}
    → {ts, sig}
@@ -102,6 +158,7 @@ There is **no HTTP polling endpoint** — the WebSocket is the only way to get t
 | Rate limit | Per-IP queue (max 1 concurrent) |
 | Auth | None |
 | Typical size | 896×896 JPEG |
+| Batch size | Max 10 images per batch |
 
 **⚠️ Portrait (9:16) is broken** — always returns an error. Use `square` or `landscape` instead. If you need a tall image, use `landscape` with a tall-oriented prompt.
 
